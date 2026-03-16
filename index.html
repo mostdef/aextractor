@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>αextractor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070a;
+      --surface: rgba(255,255,255,0.03);
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.15);
+      --text: #e8e8f0;
+      --muted: rgba(255,255,255,0.3);
+      --accent: #a78bfa;
+      --accent-glow: rgba(167,139,250,0.15);
+    }
+
+    html { height: 100%; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 24px 80px;
+      gap: 48px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Background orbs */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(109,40,217,0.12), transparent 70%);
+      top: -200px; left: -200px;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(59,130,246,0.08), transparent 70%);
+      bottom: -150px; right: -150px;
+    }
+
+    /* Noise overlay */
+    body > svg { position: fixed; inset: 0; width: 100%; height: 100%; opacity: 0.035; pointer-events: none; z-index: 1; }
+
+    * { position: relative; z-index: 2; }
+
+    /* Header */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wordmark {
+      font-size: 2rem;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .wordmark span {
+      font-weight: 600;
+      background: linear-gradient(135deg, #c4b5fd, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+
+    /* Input grid */
+    .inputs {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .drop-zone {
+      width: 240px;
+      height: 180px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: border-color 0.3s, background 0.3s, transform 0.2s, box-shadow 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .drop-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, var(--accent-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .drop-zone:hover::before, .drop-zone.dragover::before { opacity: 1; }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    }
+
+    .drop-zone.loaded {
+      border-color: rgba(167,139,250,0.2);
+    }
+
+    .drop-zone img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 12px;
+      transition: opacity 0.3s;
+    }
+
+    .drop-zone .pill {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(7,7,10,0.7);
+      backdrop-filter: blur(8px);
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      z-index: 2;
+    }
+
+    .drop-zone .icon {
+      font-size: 1.6rem;
+      transition: transform 0.3s;
+    }
+
+    .drop-zone:hover .icon { transform: scale(1.1); }
+
+    .drop-zone .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 3;
+    }
+
+    /* Divider arrow */
+    .arrow {
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      font-size: 1.2rem;
+      align-self: center;
+      margin-top: 0;
+    }
+
+    /* Extract button */
+    .btn-extract {
+      padding: 14px 44px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.2s, box-shadow 0.3s;
+      box-shadow: 0 4px 24px rgba(109,40,217,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset;
+    }
+
+    .btn-extract:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none;
+    }
+
+    .btn-extract:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 32px rgba(109,40,217,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset;
+    }
+
+    .btn-extract:not(:disabled):active { transform: translateY(0); }
+
+    /* Status */
+    #status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      min-height: 1.2em;
+      transition: color 0.3s;
+    }
+
+    #status.done { color: #86efac; }
+    #status.error { color: #fca5a5; }
+
+    /* Processing spinner */
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Output */
+    .output {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.5s, transform 0.5s;
+      pointer-events: none;
+    }
+
+    .output.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .output-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .checker {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background-color: #1a1a20;
+      background-image:
+        linear-gradient(45deg, #252530 25%, transparent 25%),
+        linear-gradient(-45deg, #252530 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #252530 75%),
+        linear-gradient(-45deg, transparent 75%, #252530 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      max-width: min(520px, 88vw);
+    }
+
+    .checker canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .btn-download {
+      padding: 11px 28px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      font-family: inherit;
+      letter-spacing: 0.04em;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+    }
+
+    .btn-download:hover {
+      border-color: var(--border-hover);
+      background: rgba(255,255,255,0.04);
+      transform: translateY(-1px);
+    }
+
+    canvas#hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Noise texture -->
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+    <rect width="100%" height="100%" filter="url(#noise)"/>
+  </svg>
+
+  <header>
+    <div class="wordmark"><span>α</span>extractor</div>
+    <div class="tagline">Remove transparency from image pairs</div>
+  </header>
+
+  <div class="inputs">
+    <div class="drop-zone" id="zone-white">
+      <input type="file" accept="image/*" id="input-white" />
+      <span class="icon">☀️</span>
+      <span class="hint">White background</span>
+      <span class="pill">White</span>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <div class="drop-zone" id="zone-black">
+      <input type="file" accept="image/*" id="input-black" />
+      <span class="icon">🌑</span>
+      <span class="hint">Black background</span>
+      <span class="pill">Black</span>
+    </div>
+  </div>
+
+  <p id="status"></p>
+
+  <button class="btn-extract" id="extract" disabled>Extract Alpha</button>
+
+  <div class="output" id="output">
+    <span class="output-label">Result</span>
+    <div class="checker">
+      <canvas id="result"></canvas>
+    </div>
+    <button class="btn-download" id="download">↓ Download PNG</button>
+  </div>
+
+  <canvas id="hidden"></canvas>
+
+  <script>
+    const inputWhite  = document.getElementById('input-white');
+    const inputBlack  = document.getElementById('input-black');
+    const btnExtract  = document.getElementById('extract');
+    const btnDownload = document.getElementById('download');
+    const outputEl    = document.getElementById('output');
+    const resultCanvas = document.getElementById('result');
+    const hiddenCanvas = document.getElementById('hidden');
+    const statusEl    = document.getElementById('status');
+
+    let imgWhite = null, imgBlack = null, outputFilename = 'output.png';
+
+    function setStatus(msg, type = '') {
+      statusEl.textContent = msg;
+      statusEl.className = type;
+    }
+
+    function loadImage(file) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function getPixels(img) {
+      hiddenCanvas.width = img.naturalWidth;
+      hiddenCanvas.height = img.naturalHeight;
+      const ctx = hiddenCanvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      return ctx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+    }
+
+    function previewInZone(zoneId, file) {
+      const zone = document.getElementById(zoneId);
+      zone.querySelector('.icon').style.display = 'none';
+      zone.querySelector('.hint').style.display = 'none';
+      const old = zone.querySelector('img');
+      if (old) old.remove();
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      zone.insertBefore(img, zone.querySelector('.pill'));
+      zone.classList.add('loaded');
+    }
+
+    function setupDrop(zoneId, inputEl) {
+      const zone = document.getElementById(zoneId);
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        const dt = new DataTransfer(); dt.items.add(file); inputEl.files = dt.files;
+        inputEl.dispatchEvent(new Event('change'));
+      });
+    }
+
+    setupDrop('zone-white', inputWhite);
+    setupDrop('zone-black', inputBlack);
+
+    inputWhite.addEventListener('change', async () => {
+      if (!inputWhite.files[0]) return;
+      previewInZone('zone-white', inputWhite.files[0]);
+      imgWhite = await loadImage(inputWhite.files[0]);
+      checkReady();
+    });
+
+    inputBlack.addEventListener('change', async () => {
+      if (!inputBlack.files[0]) return;
+      previewInZone('zone-black', inputBlack.files[0]);
+      imgBlack = await loadImage(inputBlack.files[0]);
+      checkReady();
+    });
+
+    function checkReady() {
+      btnExtract.disabled = !(imgWhite && imgBlack);
+    }
+
+    btnExtract.addEventListener('click', () => {
+      statusEl.innerHTML = '<span class="spinner"></span> Processing…';
+      statusEl.className = '';
+      outputEl.classList.remove('visible');
+
+      requestAnimationFrame(() => setTimeout(() => {
+        try {
+          const wPx = getPixels(imgWhite);
+          const bPx = getPixels(imgBlack);
+
+          if (wPx.width !== bPx.width || wPx.height !== bPx.height) {
+            setStatus('Images must be the same size.', 'error');
+            return;
+          }
+
+          const { width, height } = wPx;
+          resultCanvas.width = width;
+          resultCanvas.height = height;
+          const ctx = resultCanvas.getContext('2d');
+          const out = ctx.createImageData(width, height);
+          const wd = wPx.data, bd = bPx.data, od = out.data;
+
+          for (let i = 0; i < width * height; i++) {
+            const p = i * 4;
+            const aR = 1 - (wd[p]   - bd[p])   / 255;
+            const aG = 1 - (wd[p+1] - bd[p+1]) / 255;
+            const aB = 1 - (wd[p+2] - bd[p+2]) / 255;
+            const alpha = Math.max(0, Math.min(1, (aR + aG + aB) / 3));
+
+            if (alpha > 0.001) {
+              od[p]   = Math.round(Math.max(0, Math.min(255, bd[p]   / alpha)));
+              od[p+1] = Math.round(Math.max(0, Math.min(255, bd[p+1] / alpha)));
+              od[p+2] = Math.round(Math.max(0, Math.min(255, bd[p+2] / alpha)));
+            }
+            od[p+3] = Math.round(alpha * 255);
+          }
+
+          ctx.putImageData(out, 0, 0);
+
+          const rawName = inputWhite.files[0].name.replace(/\.[^.]+$/, '').replace(/-white$/i, '');
+          outputFilename = rawName + '.png';
+
+          outputEl.classList.add('visible');
+          setStatus(`${width} × ${height} px`, 'done');
+        } catch (e) {
+          setStatus('Error: ' + e.message, 'error');
+        }
+      }, 10));
+    });
+
+    btnDownload.addEventListener('click', () => {
+      resultCanvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = outputFilename;
+        a.click();
+      }, 'image/png');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "alpha-extractor",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "process": "npx tsx process.ts",
+    "watch": "npx tsx process.ts --watch"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.0",
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
